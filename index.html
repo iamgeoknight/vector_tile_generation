@@ -1,0 +1,182 @@
+<html>
+
+<head>
+    <title>Lat Lon</title>
+    <script src="cdn/ol.js"></script>
+    <link rel="stylesheet" href="cdn/ol.css">
+    <link rel="stylesheet" href="cdn/style.css">
+</head>
+
+<body>
+    <div id="map">
+        <div id="popup"></div>
+    </div>
+</body>
+<script>
+
+
+
+    var style_simple = new ol.style.Style({
+        fill: new ol.style.Fill({
+            color: '#ADD8E6'
+        }),
+        stroke: new ol.style.Stroke({
+            color: '#880000',
+            width: 5
+        })
+    });
+
+    let osmLayer = new ol.layer.Tile({
+        source: new ol.source.OSM()
+    })
+
+    let vectortile_layer = new ol.layer.VectorTile({
+        style: style_simple,
+        source: new ol.source.VectorTile({
+            tilePixelRatio: 1, // oversampling when > 1
+            tileGrid: ol.tilegrid.createXYZ({ maxZoom: 19 }),
+            format: new ol.format.MVT(),
+            url: 'tiles/{z}/{x}/{y}.mvt'
+        }),
+        minZoom: 14,
+        maxZoom: 18
+    });
+
+
+    // Create vector layer for highlighting the feature on popup click
+    let selectionLayer = new ol.layer.Vector({
+        source: new ol.source.Vector({}),
+        name: 'selectionLayer',
+        style: new ol.style.Style({
+            stroke: new ol.style.Stroke({
+                color: 'red',
+                width: 10,
+            }),
+            fill: new ol.style.Fill({
+                color: 'rgba(200,20,20,0.4)',
+            }),
+        })
+    });
+
+
+    var layer = 'postgres:germany_landuse_4326';
+    var projection_epsg_no = '4326';
+    var map = new ol.Map({
+        target: 'map',
+        view: new ol.View({
+            center: [
+                8542295.27212957, 3595868.3527581077],
+            zoom: 13,
+            // minZoom: 10,
+            maxZoom: 18
+        }),
+        layers: [
+            osmLayer,
+            vectortile_layer,
+            selectionLayer
+        ]
+    });
+
+    let element = document.getElementById("popup"), offset = [0, 0], positioning = 'bottom-center', className = 'ol-tooltip-measure ol-tooltip .ol-tooltip-static';
+    let overlay = new ol.Overlay({
+        element: element,
+        offset: offset,
+        positioning: positioning,
+        className: className
+    });
+    overlay.setPosition([0, 0]);
+    overlay.element.style.display = 'block';
+    map.addOverlay(overlay);
+
+    // Add a click event listener to the map
+    map.on('singleclick', function (evt) {
+        overlay.element.innerHTML = ''
+        overlay.setPosition([0, 0]);
+        selectionLayer.getSource().clear();
+        var viewResolution = map.getView().getResolution();
+        var coordinate = evt.coordinate;
+        console.log(evt);
+        // Retrieve features at the clicked pixel
+        map.forEachFeatureAtPixel(evt.pixel, function (feature, layer) {
+            // Print feature properties
+            let properties = feature.getProperties();
+            if (layer == vectortile_layer) {
+                let table = document.createElement('table');
+                Object.entries(properties).forEach((value) => {
+                    if (value[0] != 'geom') {
+                        let tr = document.createElement('tr');
+                        let td1 = document.createElement('th')
+                        td1.style.textAlign = "left";
+                        let td2 = document.createElement('td')
+                        td2.style.textAlign = "left";
+                        td1.innerHTML = value[0];
+                        td2.innerHTML = value[1];
+                        tr.append(td1);
+                        tr.append(td2);
+                        table.append(tr);
+                    }
+                });
+                overlay.element.append(table);
+                overlay.setPosition(evt.coordinate);
+
+
+                let wkb = new ol.format.WKB({
+                });
+
+                let pointFeature = new ol.Feature({
+                    geometry: wkb.readGeometry(feature.getProperties().geom).transform('EPSG:4326', 'EPSG:3857')
+                });
+
+                selectionLayer.getSource().addFeature(pointFeature);
+            }
+        });
+    });
+    var layer = new ol.layer.Vector({
+        source: new ol.source.Vector(),
+        style: new ol.style.Style({
+            stroke: new ol.style.Stroke({
+                color: 'black',
+                width: 1,
+            }),
+            fill: new ol.style.Fill({
+                color: 'rgba(200,20,20,0.0)',
+            }),
+        })
+    });
+
+
+
+    map.addLayer(layer);
+
+    map.on('moveend', function (e) {
+        // layer.getSource().clear();
+        var extent = map.getView().calculateExtent(map.getSize());
+        var zoom = map.getView().getZoom();
+        var resolution = map.getView().getResolution();
+        var tileSize = 256 * Math.pow(2, zoom);
+
+        var tileGrid = ol.tilegrid.createXYZ({
+            extent: extent,
+            tileSize: [256, 256],
+            maxZoom: 20
+        });
+
+
+
+        // calculate the tile coordinate for the top-left tile
+        var tileCoord = tileGrid.getTileCoordForCoordAndResolution([extent[0], extent[3]], resolution);
+
+        // clear the existing features from the layer
+        layer.getSource().clear();
+
+        // add a polygon feature for each tile in the current extent and zoom level
+        tileGrid.forEachTileCoord(extent, tileCoord[0], function (tileCoord) {
+            var tileExtent = tileGrid.getTileCoordExtent(tileCoord);
+            var tileGeom = ol.geom.Polygon.fromExtent(tileExtent);
+            var tileFeature = new ol.Feature(tileGeom);
+            layer.getSource().addFeature(tileFeature);
+        });
+    });
+</script>
+
+</html>
