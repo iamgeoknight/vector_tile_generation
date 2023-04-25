@@ -22,7 +22,7 @@ engine = create_engine(connection_string)
 
 tricity = gpd.read_postgis(sql="select * from osm.tricity", con=engine);
 
-
+# The purpose of this function is to calculate the x and y tile coordinates for a given latitude, longitude, and zoom level, using the Web Mercator projection.
 def deg2num(lat_deg, lon_deg, zoom):
     lat_rad = math.radians(lat_deg)
     n = 2.0 ** zoom
