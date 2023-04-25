@@ -1,9 +1,6 @@
 import os
-import psycopg2
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
-from geoalchemy2 import Geometry, WKTElement
-from geoalchemy2.functions import ST_AsMVTGeom, ST_TileEnvelope
 import geopandas as gpd
 import math
 
@@ -40,6 +37,9 @@ session = Session()
 
 # Define the extent
 min_x, min_y, max_x, max_y = tricity.total_bounds # Example extent covering the world
+
+# extent_query = 'SELECT ST_XMin(ST_Extent(geom)) as min_x, ST_YMin(ST_Extent(geom)) as min_y, ST_XMax(ST_Extent(geom)) as max_x, ST_YMax(ST_Extent(geom)) as max_y  from osm.multipolygons_tricity'
+# min_x, min_y, max_x, max_y = session.execute(extent_query).all()[0]
 
 # Define the zoom levels
 zoom_levels = list(range(19, 20))  # Example zoom levels from 0 to 17
