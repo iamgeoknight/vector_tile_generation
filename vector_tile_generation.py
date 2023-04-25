@@ -65,7 +65,7 @@ sql_template = '''
     ) q;
 '''
 
-# Generate vector tiles for the specified extent and zoom levels
+# Generate vector tiles for the specified extent and zoom levels and locally store them
 for z in zoom_levels:
     min_tile_x, max_tile_y = deg2num(min_y, min_x, z)
     max_tile_x, min_tile_y = deg2num(max_y, max_x, z)
